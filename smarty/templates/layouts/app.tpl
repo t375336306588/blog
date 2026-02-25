@@ -8,6 +8,8 @@
 
     <title>Blog</title>
 
+    <link href="/css/main.css" rel="stylesheet">
+
 </head>
 <body>
 
@@ -20,6 +22,8 @@
             </div>
         </div>
     </main>
+
+    <script src="/js/bundle.js"></script>
 
 </body>
 </html>

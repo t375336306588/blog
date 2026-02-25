@@ -1,0 +1,21 @@
+{
+  "type": "module",
+  "scripts": {
+    "scss-build": "sass --load-path=node_modules scss/main.scss public/css/main.css",
+    "js-build": "rollup -c",
+    "copy-fonts": "npx copyfiles --flat node_modules/@fortawesome/fontawesome-free/webfonts/*.* public/webfonts/",
+    "build": "npm run scss-build && npm run js-build",
+    "dev": "npm-run-all --parallel scss-watch js-watch"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.1.0",
+    "bootstrap": "^5.3.8",
+    "jquery": "^3.7.1"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "npm-run-all": "^4.1.5",
+    "rollup": "^4.18.0",
+    "sass": "^1.94.2"
+  }
+}
