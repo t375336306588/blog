@@ -1,8 +1,14 @@
 <?php
 
-ini_set("display_errors", 1);
-
 require_once '../vendor/autoload.php';
+
+use Dotenv\Dotenv;
+
+$dotenv = Dotenv::createImmutable("..");
+
+$dotenv->load();
+
+ini_set("display_errors", mb_strtolower($_ENV['APP_DEBUG']) == 'true' ? true : false);
 
 $smarty = new \Smarty\Smarty();
 
