@@ -1,9 +1,6 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Привет, Smarty</title>
-</head>
-<body>
-<h1>Привет, {$name}!</h1>
-</body>
-</html>
+{extends file="layouts/app.tpl"}
+
+{block name="content"}
+    <h1 class="text-center display-1 fw-bold">Главная</h1>
+    <p class="text-center">Привет, {$name}!</p>
+{/block}
