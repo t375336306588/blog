@@ -3,10 +3,83 @@
 namespace App\DB;
 
 use App\Resource\Article;
+use App\Resource\Category;
 
-abstract class PDO {
+abstract class PDO implements IResourceCategories {
 
     protected $connection;
+
+    protected $categories;
+
+    public function getHomeCategories() {
+        $q = "SELECT DISTINCT c.* FROM categories c
+            INNER JOIN resources_categories rc ON c.id = rc.category_id
+            WHERE rc.resource_type = 'article'";
+
+        $s = $this->connection->prepare($q);
+
+        $s->execute();
+
+        return array_map(
+            fn($data) => new Category($data, $this),
+            $s->fetchAll()
+        );
+    }
+
+    public function getCategoryLatestArticles($id, $limit) {
+        $q = "SELECT 
+                a.*,
+                f.path AS image,
+                IFNULL(v.number, 0) AS views
+            FROM articles a
+                
+            INNER JOIN resources_categories rc ON a.id = rc.resource_id AND rc.resource_type = 'article'
+           
+            LEFT JOIN resources_attachments ra ON a.id = ra.resource_id AND ra.resource_type = 'article'
+            
+            LEFT JOIN files f ON f.id = ra.file_id
+            
+            LEFT JOIN resources_views v ON v.id = a.id AND v.resource_type = 'article'
+            
+            WHERE rc.category_id = :c_id
+            
+            ORDER BY a.created_at DESC
+                                  
+            LIMIT :limit";
+
+        $s = $this->connection->prepare($q);
+
+        $s->bindValue(':c_id', (int) $id, \PDO::PARAM_INT);
+        $s->bindValue(':limit', (int) $limit, \PDO::PARAM_INT);
+
+        $s->execute();
+
+        return array_map(
+            fn($data) => new Article($data),
+            $s->fetchAll()
+        );
+    }
+
+    public function getChildrenCategories($id) {
+        $children = [];
+
+        foreach ($this->categories as $category) {
+            if ($category->getParentId() == $id) {
+                $children[] = $category;
+            }
+        }
+
+        return $children;
+    }
+
+    public function getParentCategory($id) {
+        foreach ($this->categories as $category) {
+            if ($category->getId() == $id) {
+                return $category;
+            }
+        }
+        return null;
+    }
 
     public function createCategories($list) {
 
@@ -68,7 +141,7 @@ abstract class PDO {
 
     }
 
-    private function getRow($table, $id)
+    protected function getRow($table, $id)
     {
         $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
 
@@ -81,13 +154,26 @@ abstract class PDO {
         return $s->fetch();
     }
 
+    protected function getRows($table)
+    {
+        $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+
+        $sql = "SELECT * FROM `$table`";
+
+        $s = $this->connection->prepare($sql);
+
+        $s->execute();
+
+        return $s->fetchAll();
+    }
+
     public function getArticle($id)
     {
         $sql = "SELECT 
                 a.*,
                 f.path AS image,
                 IFNULL(v.number, 0) AS views,
-                GROUP_CONCAT(c.name) AS categories
+                GROUP_CONCAT(c.title) AS categories
             FROM articles a
             LEFT JOIN resources_attachments ra ON ra.resource_id = a.id AND ra.resource_type = 'article'
             LEFT JOIN files f ON f.id = ra.file_id

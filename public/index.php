@@ -78,10 +78,11 @@ try {
         exit;
     }
 
-    $smarty->assign('name', 'xxxx');
+    $smarty->assign('categories', $db->getHomeCategories());
 
-} catch (PDOException $e) {
+} catch (\PDOException $e) {
     $template = "500";
+    $smarty->assign('error', $e);
 }
 
 $smarty->display($template . '.tpl');

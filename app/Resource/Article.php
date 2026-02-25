@@ -6,6 +6,7 @@ class Article extends Resource
 {
     protected $title;
     protected $description;
+
     protected $content;
     protected $image;
     protected $views;
@@ -33,27 +34,30 @@ class Article extends Resource
         }
     }
 
-    private function getTitle() {
+    public function getTitle() {
         return $this->title;
     }
 
-    private function getDescription() {
+    public function getDescription() {
         return $this->description;
     }
 
-    private function getContent() {
+    public function getContent() {
         return $this->content;
     }
 
-    private function getImage() {
+    public function getImage() {
+        if (is_null($this->image)) {
+            return "/files/placeholder.png";
+        }
         return $this->image;
     }
 
-    private function getViews() {
+    public function getViews() {
         return $this->views;
     }
 
-    private function getCategories() {
+    public function getCategories() {
         return $this->categories;
     }
 

@@ -2,6 +2,8 @@
 
 namespace App\DB;
 
+use App\Resource\Category;
+
 class Mysql extends PDO {
 
     public function __construct($host, $db, $user, $pass) {
@@ -15,6 +17,11 @@ class Mysql extends PDO {
         ];
 
         $this->connection = new \PDO($dsn, $user, $pass, $options);
+
+        $this->categories = array_map(
+            fn($data) => new Category($data, $this),
+            $this->getRows("categories")
+        );
 
     }
 
