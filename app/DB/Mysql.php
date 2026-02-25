@@ -2,9 +2,7 @@
 
 namespace App\DB;
 
-class Mysql implements IDB {
-
-    private $connection;
+class Mysql extends PDO {
 
     public function __construct($host, $db, $user, $pass) {
 
@@ -19,7 +17,6 @@ class Mysql implements IDB {
         $this->connection = new \PDO($dsn, $user, $pass, $options);
 
     }
-
 
 }
 

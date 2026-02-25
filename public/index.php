@@ -37,11 +37,51 @@ try {
         $_ENV['DB_PASS']
     );
 
+    if (isset($_GET["seed"])) {
+
+        unset($categories);
+        unset($articles);
+
+        $f = "../data/seed.php";
+
+        if (file_exists($f)) {
+            include $f;
+        }
+
+        $categoriesExist = isset($categories) && is_array($categories);
+
+        if ($categoriesExist) {
+            $db->createCategories($categories);
+            echo "Categories created<br>";
+            $categoriesLength = count($categories);
+        }
+
+        if (isset($articles) && is_array($articles)) {
+
+            $fileId1 = $db->addFile("/files/1.jpg");
+            $fileId2 = $db->addFile("/files/2.jpg");
+
+            foreach ($articles as $article) {
+                $a = $db->createArticle($article);
+                $db->setViews(rand(1, 1000), $a->getId(), "article");
+                $db->setAttachment($a->getId() % 2 == 0 ? $fileId1 : $fileId2, $a->getId(), "article");
+
+                if ($categoriesExist) {
+                    $randomCategoryIds = array_slice(range(1, $categoriesLength), 0, rand(1, $categoriesLength));
+                    $db->setCategories($randomCategoryIds, $a->getId(), "article");
+                }
+            }
+
+            echo "Articles created<br>";
+        }
+
+        exit;
+    }
+
     $smarty->assign('name', 'xxxx');
 
 } catch (PDOException $e) {
     $template = "500";
-    var_dump($e->getMessage());
 }
 
 $smarty->display($template . '.tpl');
