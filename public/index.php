@@ -4,6 +4,7 @@ require_once '../vendor/autoload.php';
 
 use Dotenv\Dotenv;
 use App\DB\Mysql;
+use \Smarty\Smarty;
 
 $dotenv = Dotenv::createImmutable("..");
 
@@ -19,14 +20,14 @@ if (mb_strtolower($_ENV['APP_DEBUG']) == 'true') {
     error_reporting(0);
 }
 
-$smarty = new \Smarty\Smarty();
+$smarty = new Smarty();
 
 $smarty->setTemplateDir('../smarty/templates/');
 $smarty->setCompileDir('../smarty/templates_c/');
 $smarty->setCacheDir('../smarty/cache/');
 $smarty->setConfigDir('../smarty/configs/');
 
-$template = "index";
+$link = parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH);
 
 try {
 
@@ -36,6 +37,15 @@ try {
         $_ENV['DB_USER'],
         $_ENV['DB_PASS']
     );
+    if ($link == "/") {
+        $smarty->assign('categories', $db->getHomeCategories());
+        $template = "home";
+    } elseif (preg_match("#^/category/(\d+)$#u", $link, $matches)) {
+        $smarty->assign('category', $db->getCategory($matches[1]));
+        $template = "category";
+    } else {
+        $template = "404";
+    }
 
     if (isset($_GET["seed"])) {
 
@@ -78,7 +88,7 @@ try {
         exit;
     }
 
-    $smarty->assign('categories', $db->getHomeCategories());
+
 
 } catch (\PDOException $e) {
     $template = "500";

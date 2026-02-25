@@ -26,6 +26,18 @@ abstract class PDO implements IResourceCategories {
         );
     }
 
+    public function getCategory($id) {
+        $q = "SELECT * FROM categories WHERE id = :id";
+
+        $s = $this->connection->prepare($q);
+
+        $s->execute([
+            ":id" => $id
+        ]);
+
+        return new Category($s->fetch(), $this);
+    }
+
     public function getCategoryLatestArticles($id, $limit) {
         $q = "SELECT 
                 a.*,
