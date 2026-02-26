@@ -2,31 +2,29 @@
 
 namespace App\DB;
 
-use App\Resource\Article;
-use App\Resource\Category;
+use App\Page\IArticleDB;
+use App\Page\ICategoryDB;
+use App\Page\Creator\ICreator;
+use App\Page\Creator\ICreatorDB;
 
-abstract class PDO implements IResourceCategories {
+abstract class PDO implements ICategoryDB, IArticleDB, ICreatorDB {
+
 
     protected $connection;
-
     protected $categories;
+    protected $articleCreator;
+    protected $categoryCreator;
 
-    public function getHomeCategories() {
-        $q = "SELECT DISTINCT c.* FROM categories c
-            INNER JOIN resources_categories rc ON c.id = rc.category_id
-            WHERE rc.resource_type = 'article'";
-
-        $s = $this->connection->prepare($q);
-
-        $s->execute();
-
-        return array_map(
-            fn($data) => new Category($data, $this),
-            $s->fetchAll()
-        );
+    public function setArticleCreator(ICreator $creator) {
+        $this->articleCreator = $creator;
     }
 
-    public function getCategory($id) {
+    public function setCategoryCreator(ICreator $creator) {
+        $this->categoryCreator = $creator;
+    }
+
+    public function getCategoryData(int $id) {
+
         $q = "SELECT * FROM categories WHERE id = :id";
 
         $s = $this->connection->prepare($q);
@@ -35,28 +33,79 @@ abstract class PDO implements IResourceCategories {
             ":id" => $id
         ]);
 
-        return new Category($s->fetch(), $this);
+        return $s->fetch();
     }
 
-    public function getCategoryLatestArticles($id, $limit) {
-        $q = "SELECT 
-                a.*,
-                f.path AS image,
-                IFNULL(v.number, 0) AS views
-            FROM articles a
-                
+    public function getHomeCategories() {
+        $q = "SELECT DISTINCT c.id FROM categories c
+            INNER JOIN resources_categories rc ON c.id = rc.category_id
+            WHERE rc.resource_type = 'article'";
+
+        $s = $this->connection->prepare($q);
+
+        $s->execute();
+
+        return array_map(
+            fn($id) => $this->getCategory($id),
+            $s->fetchAll(\PDO::FETCH_COLUMN)
+        );
+    }
+
+    public function getCategoryArticles(int $id, string $orderBy, string $orderType, int $offset, int $limit) {
+
+        $q = "SELECT a.id
+            FROM articles a                
             INNER JOIN resources_categories rc ON a.id = rc.resource_id AND rc.resource_type = 'article'
-           
-            LEFT JOIN resources_attachments ra ON a.id = ra.resource_id AND ra.resource_type = 'article'
-            
-            LEFT JOIN files f ON f.id = ra.file_id
-            
-            LEFT JOIN resources_views v ON v.id = a.id AND v.resource_type = 'article'
-            
+            LEFT JOIN resources_views rv ON a.id = rv.resource_id AND rv.resource_type = 'article'
             WHERE rc.category_id = :c_id
-            
-            ORDER BY a.created_at DESC
-                                  
+            ORDER BY $orderBy $orderType
+            LIMIT :offset, :limit";
+
+        $s = $this->connection->prepare($q);
+
+        $s->bindValue(':c_id', (int) $id, \PDO::PARAM_INT);
+        $s->bindValue(':offset', (int) $offset, \PDO::PARAM_INT);
+        $s->bindValue(':limit', (int) $limit, \PDO::PARAM_INT);
+
+        $s->execute();
+
+        return array_map(
+            fn($id) => $this->articleCreator->getById($id),
+            $s->fetchAll(\PDO::FETCH_COLUMN)
+        );
+    }
+
+
+    public function getSimilarArticles(int $id, int $limit = 6) {
+
+        $article = $this->articleCreator->getById($id);
+
+        $similar = [];
+
+        foreach ($article->getCategories() as $category) {
+            foreach ($category->getRandomArticles(7) as $cArticle) {
+                if ($cArticle->getId() !== $id) {
+                    $similar[] = $cArticle;
+                    $limit--;
+                    if ($limit < 1) {
+                        break 2;
+                    }
+                }
+            }
+        }
+
+        shuffle($similar);
+
+        return $similar;
+    }
+
+    public function getRandomCategoryArticles(int $id, int $limit)
+    {
+        $q = "SELECT a.id
+            FROM articles a                
+            INNER JOIN resources_categories rc ON a.id = rc.resource_id AND rc.resource_type = 'article'
+            WHERE rc.category_id = :c_id
+            ORDER BY RAND()
             LIMIT :limit";
 
         $s = $this->connection->prepare($q);
@@ -67,15 +116,63 @@ abstract class PDO implements IResourceCategories {
         $s->execute();
 
         return array_map(
-            fn($data) => new Article($data),
-            $s->fetchAll()
+            fn($id) => $this->articleCreator->getById($id),
+            $s->fetchAll(\PDO::FETCH_COLUMN)
         );
     }
 
-    public function getChildrenCategories($id) {
+    public function getLatestCategoryArticles(int $id, int $limit) {
+
+        $q = "SELECT a.id
+            FROM articles a                
+            INNER JOIN resources_categories rc ON a.id = rc.resource_id AND rc.resource_type = 'article'
+            WHERE rc.category_id = :c_id
+            ORDER BY a.created_at DESC
+            LIMIT :limit";
+
+        $s = $this->connection->prepare($q);
+
+        $s->bindValue(':c_id', (int) $id, \PDO::PARAM_INT);
+        $s->bindValue(':limit', (int) $limit, \PDO::PARAM_INT);
+
+        $s->execute();
+
+        return array_map(
+            fn($id) => $this->articleCreator->getById($id),
+            $s->fetchAll(\PDO::FETCH_COLUMN)
+        );
+    }
+
+    public function countCategoryArticles(int $id): int
+    {
+        $q = "SELECT COUNT(*) 
+          FROM articles a                
+          INNER JOIN resources_categories rc ON a.id = rc.resource_id 
+          WHERE rc.resource_type = 'article' 
+            AND rc.category_id = :c_id";
+
+        $s = $this->connection->prepare($q);
+        $s->bindValue(':c_id', $id, \PDO::PARAM_INT);
+        $s->execute();
+
+        return (int) $s->fetchColumn();
+    }
+
+    protected function getCategories()
+    {
+        if (is_null($this->categories)) {
+            $this->categories = array_map(
+                fn($id) => $this->categoryCreator->getById($id),
+                $this->getIDs("categories")
+            );
+        }
+        return $this->categories;
+    }
+
+    public function getChildrenCategories(int $id) {
         $children = [];
 
-        foreach ($this->categories as $category) {
+        foreach ($this->getCategories() as $category) {
             if ($category->getParentId() == $id) {
                 $children[] = $category;
             }
@@ -84,14 +181,25 @@ abstract class PDO implements IResourceCategories {
         return $children;
     }
 
-    public function getParentCategory($id) {
-        foreach ($this->categories as $category) {
+    public function getCategory(int $id) {
+        foreach ($this->getCategories() as $category) {
             if ($category->getId() == $id) {
                 return $category;
             }
         }
         return null;
     }
+
+    public function getCategoryByTitle(string $title) {
+        foreach ($this->getCategories() as $category) {
+            if ($category->getTitle() == $title) {
+                return $category;
+            }
+        }
+        return null;
+    }
+
+
 
     public function createCategories($list) {
 
@@ -144,26 +252,40 @@ abstract class PDO implements IResourceCategories {
 
             $id = (int) $this->connection->lastInsertId();
 
-            $data = $this->getRow("articles", $id);
-
-            return new Article($data);
+            return $this->articleCreator->getById($id);
         }
 
         return null;
 
     }
 
-    protected function getRow($table, $id)
+    public function getRow($table, int $id)
     {
         $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
 
-        $sql = "SELECT * FROM `$table` WHERE id = :id LIMIT 1";
+        $q = "SELECT * FROM `$table` WHERE id = :id LIMIT 1";
 
-        $s = $this->connection->prepare($sql);
+        $s = $this->connection->prepare($q);
 
         $s->execute(['id' => $id]);
 
         return $s->fetch();
+    }
+
+    public function updateRow($column, $value, $table, int $id)
+    {
+        $column = preg_replace('/[^a-zA-Z0-9_]/', '', $column);
+        $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+
+        $q = "UPDATE `$table` SET `$column` = :value WHERE id = :id LIMIT 1";
+
+        $s = $this->connection->prepare($q);
+
+        $s->execute([
+            ':id' => $id,
+            ':value' => $value,
+        ]);
+
     }
 
     protected function getRows($table)
@@ -179,9 +301,23 @@ abstract class PDO implements IResourceCategories {
         return $s->fetchAll();
     }
 
-    public function getArticle($id)
+    protected function getIDs($table)
     {
-        $sql = "SELECT 
+        $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+
+        $sql = "SELECT id FROM `$table`";
+
+        $s = $this->connection->prepare($sql);
+
+        $s->execute();
+
+        return $s->fetchAll(\PDO::FETCH_COLUMN);
+    }
+
+    public function getArticleData(int $id)
+    {
+
+        $q = "SELECT 
                 a.*,
                 f.path AS image,
                 IFNULL(v.number, 0) AS views,
@@ -195,13 +331,12 @@ abstract class PDO implements IResourceCategories {
             WHERE a.id = :id
             GROUP BY a.id";
 
-        $stmt = $this->connection->prepare($sql);
-        $stmt->execute([':id' => $id]);
+        $s = $this->connection->prepare($q);
+        $s->execute([':id' => $id]);
 
-        $article = $stmt->fetch(\PDO::FETCH_ASSOC);
+        $article = $s->fetch();
 
         if ($article && $article['categories']) {
-            // Превращаем строку категорий "PHP,SQL" в массив ["PHP", "SQL"]
             $article['categories'] = explode(',', $article['categories']);
         }
 

@@ -2,7 +2,7 @@
 
 namespace App\DB;
 
-use App\Resource\Category;
+use App\Page\Category;
 
 class Mysql extends PDO {
 
@@ -18,10 +18,6 @@ class Mysql extends PDO {
 
         $this->connection = new \PDO($dsn, $user, $pass, $options);
 
-        $this->categories = array_map(
-            fn($data) => new Category($data, $this),
-            $this->getRows("categories")
-        );
 
     }
 

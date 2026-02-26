@@ -1,0 +1,53 @@
+---
+
+services:
+
+  nginx:
+    image: nginx
+    hostname: nginx
+    container_name: nginx
+    restart: unless-stopped
+    user: root
+    depends_on:
+      - php82
+      - php84
+    environment:
+      TZ: "Europe/Minsk"
+    ports:
+      - 8080:80
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./site:/var/www/site
+
+  php84:
+    build:
+      context: ./php84/
+    hostname: php84
+    container_name: php84
+    restart: unless-stopped
+    user: root
+    environment:
+      TZ: "Europe/Minsk"
+    volumes:
+      - ./site:/var/www/site
+      - ./php84/php.ini:/usr/local/etc/php/php.ini
+
+  mysql:
+    image: mysql:8.0
+    hostname: mysql
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: xxxxxxxxx
+      MYSQL_DATABASE: xxxxxxxxx
+      MYSQL_USER: xxxxxxxxx
+      MYSQL_PASSWORD: "xxxxxxxxx"
+      MYSQL_HOST: "localhost"
+      TZ: "Europe/Minsk"
+    ports:
+      - 3307:3306
+    volumes:
+      - ./mysql:/var/lib/mysql
+      - ./data/db_dump:/docker-entrypoint-initdb.d
+    command:
+      - --bind-address=0.0.0.0

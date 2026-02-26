@@ -11,9 +11,21 @@
     <link href="/css/main.css" rel="stylesheet">
 
 </head>
-<body>
+<body class="py-5">
 
-    <main class="mt-5">
+    <header class="mb-5">
+        <div class="container">
+            <div class="row">
+                <div class="col">
+                    <a href="/">
+                        <img src="https://worldwide.by/storage/images/logos/worldwide_red.svg" class="logo img-fluid">
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
         <div class="container">
             <div class="row">
                 <div class="col">
