@@ -135,4 +135,5 @@ class Category extends DBPage
     public function getOrderType() {
         return $this->orderType;
     }
+
 }

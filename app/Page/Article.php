@@ -88,4 +88,8 @@ class Article extends DBPage
         return $this->db->getSimilarArticles($this->getId(), 3);
     }
 
+    public function render() {
+        $this->db->setViews($this->getViews() + 1, $this->getId(), "article");
+        $this->layout->render($this->template, $this->code);
+    }
 }

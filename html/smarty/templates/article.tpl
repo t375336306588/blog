@@ -4,6 +4,8 @@
 
     <h1 class="text-center fw-bold mb-4">#{$article->getId()} {$article->getTitle()}</h1>
 
+    <p><span class="badge bg-light text-dark border">👁 {$article->getViews()}</span></p>
+
     <h3>Description</h3>
     <p class="mb-4">{$article->getDescription()}</p>
 
